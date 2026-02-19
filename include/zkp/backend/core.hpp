@@ -312,6 +312,17 @@ struct ligetron_backend {
         return expr.eval(*this);
     }
 
+    // Returns the witness ID of expr if it is a direct managed_witness,
+    // or unknown_id when it is an intermediate sub-expression.
+    template <typename T>
+    static size_t witness_id_of(const T& expr) {
+        if constexpr (std::is_same_v<std::decay_t<T>, managed_witness>) {
+            return expr.get() ? expr.get()->id : unknown_id;
+        } else {
+            return unknown_id;
+        }
+    }
+
     template <IsZKExprConstant K>
     managed_witness eval(const K& k) {
         return zkexpr<ops::constant, std::decay_t<K>>{ k }.eval(*this);
@@ -332,6 +343,7 @@ struct ligetron_backend {
             manager_.witness_sub_random(*wit, *r);
         }
         eval_impl(*wit->value_ptr(), *r, op, expr_x, expr_y);
+        manager_.notify_add(witness_id_of(expr_x), witness_id_of(expr_y), wit->id);
         manager_.recycle_mpz(r);
 
         return make_managed(wit);
@@ -369,6 +381,7 @@ struct ligetron_backend {
             manager_.witness_sub_random(*wit, *r);
         }
         eval_impl(*wit->value_ptr(), *r, op, expr_x, k_val);
+        manager_.notify_add_const(witness_id_of(expr_x), mpz_class(k_val.data), wit->id);
 
         manager_.recycle_mpz(r);
         return make_managed(wit);
@@ -413,6 +426,7 @@ struct ligetron_backend {
             manager_.witness_sub_random(*wit, *r);
         }
         eval_impl(*wit->value_ptr(), *r, op, expr_x, expr_y);
+        manager_.notify_sub(witness_id_of(expr_x), witness_id_of(expr_y), wit->id);
 
         manager_.recycle_mpz(r);
         return make_managed(wit);
@@ -456,6 +470,7 @@ struct ligetron_backend {
             manager_.witness_sub_random(*wit, *r);
         }
         eval_impl(*wit->value_ptr(), *r, op, expr_x, k_val);
+        manager_.notify_sub_const(witness_id_of(expr_x), mpz_class(k_val.data), wit->id);
 
         manager_.recycle_mpz(r);
         return make_managed(wit);
@@ -499,6 +514,7 @@ struct ligetron_backend {
             manager_.witness_sub_random(*wit, *r);
         }
         eval_impl(*wit->value_ptr(), *r, op, k_val, expr_x);
+        manager_.notify_const_sub(mpz_class(k_val.data), witness_id_of(expr_x), wit->id);
 
         manager_.recycle_mpz(r);
         return make_managed(wit);
@@ -544,6 +560,7 @@ struct ligetron_backend {
         Field::mulmod(*z->value_ptr(), *x->value_ptr(), *y->value_ptr());
 
         manager_.constrain_quadratic(z, x.get(), y.get());
+        manager_.notify_mul(x->id, y->id, z->id);
 
         return make_managed(z);
     }
@@ -576,6 +593,7 @@ struct ligetron_backend {
             manager_.witness_sub_random(*wit, *r);
         }
         eval_impl(*wit->value_ptr(), *r, op, expr_x, k_val);
+        manager_.notify_mul_const(witness_id_of(expr_x), mpz_class(k_val.data), wit->id);
 
         manager_.recycle_mpz(r);
         return make_managed(wit);
@@ -619,6 +637,7 @@ struct ligetron_backend {
             manager_.witness_sub_random(*wit, *r);
         }
         eval_impl(*wit->value_ptr(), *r, op, expr_x);
+        manager_.notify_bitwise_not(witness_id_of(expr_x), wit->id);
 
         manager_.recycle_mpz(r);
         return make_managed(wit);
@@ -660,6 +679,7 @@ struct ligetron_backend {
         assert(y.val() == 0 || y.val() == 1);
 
         manager_.constrain_quadratic(z, x.get(), y.get());
+        manager_.notify_bitwise_and(x->id, y->id, z->id);
 
         return make_managed(z);
     }

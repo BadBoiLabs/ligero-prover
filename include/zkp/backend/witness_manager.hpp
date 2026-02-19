@@ -23,6 +23,7 @@
 #include <util/mpz_vector.hpp>
 #include <util/csprng.hpp>
 #include <zkp/backend/lazy_witness.hpp>
+#include <zkp/witness_observer.hpp>
 
 namespace ligero::vm::zkp {
 
@@ -92,8 +93,11 @@ struct witness_manager {
         return ins;
     }
 
+    void set_observer(witness_observer* obs) { observer_ = obs; }
+
     lazy_witness* acquire_instance() {
         lazy_witness *wit = witness_pool_.acquire();
+        wit->id = next_id_++;
         mpz_class *val = mpz_pool_.acquire();
 
         wit->value_ptr(val);
@@ -111,11 +115,16 @@ struct witness_manager {
     lazy_witness* acquire_witness(const T& v) {
         auto *wit = acquire_witness();
         *wit->value_ptr() = v;
+        if (observer_) observer_->on_acquire(wit->id, *wit->value_ptr());
         return wit;
     }
 
     void commit_release_witness(lazy_witness *wit) {
         commit_status status = wit->commit_notify();
+
+        if (observer_ && wit->is_witness()) {
+            observer_->on_release(wit->id, *wit->value_ptr(), status);
+        }
 
         switch (status) {
             case commit_status::quadratic_pending:
@@ -395,6 +404,8 @@ struct witness_manager {
 
     template <typename T>
     witness_manager& constrain_constant(lazy_witness& k, const T& v) {
+        if (observer_) observer_->on_constant(k.id, *k.value_ptr());
+
         mpz_class *rand = acquire_mpz();
         mpz_class *tmp = acquire_mpz();
 
@@ -419,6 +430,8 @@ struct witness_manager {
     witness_manager& constrain_equal(lazy_witness& a, lazy_witness& b) {
         assert(*a.value_ptr() == *b.value_ptr());
 
+        if (observer_) observer_->on_equal(a.id, b.id);
+
         mpz_class *rand = acquire_mpz();
         generate_linear_random(*rand);
         witness_add_random(a, *rand);
@@ -429,6 +442,8 @@ struct witness_manager {
 
     witness_manager& constrain_bit(lazy_witness *b) {
         assert(*b->value_ptr() == 0 || *b->value_ptr() == 1);
+
+        if (observer_) observer_->on_bit(b->id);
 
         auto *w1 = clone_witness(*b);
         auto *w2 = clone_witness(*b);
@@ -495,6 +510,38 @@ struct witness_manager {
         return *this;
     }
 
+    // --- Observer notification helpers (called by ligetron_backend) ----------
+    // These carry the semantic meaning of each operation; the observer receives
+    // them in execution order before any of the involved witnesses are released.
+
+    void notify_add(size_t a, size_t b, size_t out) {
+        if (observer_) observer_->on_add(a, b, out);
+    }
+    void notify_sub(size_t a, size_t b, size_t out) {
+        if (observer_) observer_->on_sub(a, b, out);
+    }
+    void notify_mul(size_t a, size_t b, size_t out) {
+        if (observer_) observer_->on_mul(a, b, out);
+    }
+    void notify_add_const(size_t a, const mpz_class& k, size_t out) {
+        if (observer_) observer_->on_add_const(a, k, out);
+    }
+    void notify_sub_const(size_t a, const mpz_class& k, size_t out) {
+        if (observer_) observer_->on_sub_const(a, k, out);
+    }
+    void notify_const_sub(const mpz_class& k, size_t a, size_t out) {
+        if (observer_) observer_->on_const_sub(k, a, out);
+    }
+    void notify_mul_const(size_t a, const mpz_class& k, size_t out) {
+        if (observer_) observer_->on_mul_const(a, k, out);
+    }
+    void notify_bitwise_not(size_t a, size_t out) {
+        if (observer_) observer_->on_bitwise_not(a, out);
+    }
+    void notify_bitwise_and(size_t a, size_t b, size_t out) {
+        if (observer_) observer_->on_bitwise_and(a, b, out);
+    }
+
     void finalize() {
         process_reset_linear_row();
         process_reset_quadratic_rows();
@@ -512,6 +559,9 @@ struct witness_manager {
 
 private:
     size_t row_size_, padded_row_size_;
+
+    size_t next_id_           = 0;
+    witness_observer* observer_ = nullptr;
 
     mpz_random_engine encoding_random_engine_;
     mpz_random_engine code_random_engine_;

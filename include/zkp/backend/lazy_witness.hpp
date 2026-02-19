@@ -17,6 +17,8 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
+#include <limits>
 #include <gmp.h>
 #include <gmpxx.h>
 
@@ -34,6 +36,10 @@ enum class commit_status {
 struct lazy_witness {
     lazy_witness() : val_(nullptr), rand_(nullptr), slot_(nullptr) { }
     lazy_witness(mpz_class *val, mpz_class *rand) : val_(val), rand_(rand), slot_(nullptr) { }
+
+    // Unique monotonically increasing ID assigned at allocation time.
+    // Used by witness_observer to correlate events across the lifetime of a wire.
+    size_t id = std::numeric_limits<size_t>::max();
 
     lazy_witness(const lazy_witness&) = delete;
     lazy_witness& operator=(const lazy_witness&) = delete;
@@ -60,6 +66,7 @@ struct lazy_witness {
     }
 
     void reset() {
+        id           = std::numeric_limits<size_t>::max();
         val_         = nullptr;
         rand_        = nullptr;
         slot_        = nullptr;

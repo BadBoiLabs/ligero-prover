@@ -162,6 +162,7 @@ From a convenient location:
 ``` bash
 git clone https://github.com/WebAssembly/wabt.git
 cd wabt
+git checkout 3e826ecde1adfba5f88d10d361131405637e65a3
 git submodule update --init
 mkdir build && cd build
 cmake -DCMAKE_CXX_COMPILER=g++-13 .. # For Ubuntu

@@ -162,7 +162,8 @@ endmacro()
 
 add_executable(webgpu_prover src/webgpu_prover.cpp)
 add_executable(webgpu_verifier src/webgpu_verifier.cpp)
-link_binaries(webgpu_prover webgpu_verifier)
+add_executable(constraint_trace src/constraint_trace.cpp)
+link_binaries(webgpu_prover webgpu_verifier constraint_trace)
 
 enable_testing()
 add_subdirectory(tests)
