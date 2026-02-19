@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// constraint_trace: execute a WASM program and emit a newline-delimited JSON
-// stream of witness lifecycle and constraint events to stdout (or a file).
+// constraint_trace: execute a WASM program and emit a human-readable stream of
+// witness lifecycle and constraint events to stdout (or a file).
 //
 // Usage:
 //   constraint_trace '<json-config>'
@@ -33,27 +33,28 @@
 // Programs that call vbn254fr_* host functions will abort with a missing-module
 // error at runtime.  All scalar bn254fr, uint256, WASI and env functions work.
 //
-// Event stream format (one JSON object per line):
-//   {"event":"acquire",      "id":<uint>, "val":"<hex>"}
-//   {"event":"release",      "id":<uint>, "val":"<hex>", "status":"<string>"}
-//   {"event":"add",          "a":<uint|null>, "b":<uint|null>, "out":<uint>}
-//   {"event":"sub",          "a":<uint|null>, "b":<uint|null>, "out":<uint>}
-//   {"event":"mul",          "a":<uint|null>, "b":<uint|null>, "out":<uint>}
-//   {"event":"add_const",    "a":<uint|null>, "k":"<hex>", "out":<uint>}
-//   {"event":"sub_const",    "a":<uint|null>, "k":"<hex>", "out":<uint>}
-//   {"event":"const_sub",    "k":"<hex>", "a":<uint|null>, "out":<uint>}
-//   {"event":"mul_const",    "a":<uint|null>, "k":"<hex>", "out":<uint>}
-//   {"event":"bitwise_not",  "a":<uint|null>, "out":<uint>}
-//   {"event":"bitwise_and",  "a":<uint|null>, "b":<uint|null>, "out":<uint>}
-//   {"event":"equal",        "a":<uint>, "b":<uint>}
-//   {"event":"constant",     "id":<uint>, "val":"<hex>"}
-//   {"event":"bit",          "id":<uint>}
+// Event stream format (one line per event):
+//   ACQUIRE      id=N   val=V
+//   RELEASE      id=N   val=V   status=STATUS
+//   ADD          a=N    b=N     out=N
+//   SUB          a=N    b=N     out=N
+//   MUL          a=N    b=N     out=N
+//   ADD_CONST    a=N    k=V     out=N
+//   SUB_CONST    a=N    k=V     out=N
+//   CONST_SUB    k=V    a=N     out=N
+//   MUL_CONST    a=N    k=V     out=N
+//   BITWISE_NOT  a=N    out=N
+//   BITWISE_AND  a=N    b=N     out=N
+//   EQUAL        a=N    b=N
+//   CONSTANT     id=N   val=V
+//   BIT          id=N
 //
-// A null ID means the operand is an intermediate sub-expression rather than a
-// directly named witness (e.g. a folded constant or a nested zkexpr).
+// N is a witness ID (decimal), or ? for an intermediate sub-expression.
+// V is the field element value (decimal; may be large for BN254 elements).
 
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <unordered_set>
 
@@ -88,13 +89,14 @@ namespace fs = std::filesystem;
 
 // ---- helpers ----------------------------------------------------------------
 
-static std::string hex_val(const mpz_class& v) {
-    if (v == 0) return "0x0";
-    return "0x" + v.get_str(16);
+// Formats a witness ID: decimal number, or "?" for unknown (intermediate expr).
+static std::string id_str(size_t id) {
+    return id == zkp::unknown_id ? "?" : std::to_string(id);
 }
 
-static json id_json(size_t id) {
-    return id == zkp::unknown_id ? json(nullptr) : json(id);
+// Formats a field element value as decimal.
+static std::string val_str(const mpz_class& v) {
+    return v.get_str(10);
 }
 
 static const char* status_str(zkp::commit_status s) {
@@ -110,68 +112,72 @@ static const char* status_str(zkp::commit_status s) {
 
 // ---- observer ---------------------------------------------------------------
 
-struct json_observer : zkp::witness_observer {
-    explicit json_observer(std::ostream& out) : out_(out) {}
+struct text_observer : zkp::witness_observer {
+    explicit text_observer(std::ostream& out) : out_(out) {}
 
     void on_acquire(size_t id, const mpz_class& val) override {
-        emit({{"event", "acquire"}, {"id", id}, {"val", hex_val(val)}});
+        line("ACQUIRE", "id=" + id_str(id) + "  val=" + val_str(val));
     }
 
     void on_release(size_t id, const mpz_class& val, zkp::commit_status s) override {
-        emit({{"event", "release"}, {"id", id}, {"val", hex_val(val)},
-              {"status", status_str(s)}});
+        line("RELEASE", "id=" + id_str(id) + "  val=" + val_str(val)
+                       + "  status=" + status_str(s));
     }
 
     void on_add(size_t a, size_t b, size_t out) override {
-        emit({{"event", "add"}, {"a", id_json(a)}, {"b", id_json(b)}, {"out", out}});
+        line("ADD", "a=" + id_str(a) + "  b=" + id_str(b) + "  out=" + id_str(out));
     }
 
     void on_sub(size_t a, size_t b, size_t out) override {
-        emit({{"event", "sub"}, {"a", id_json(a)}, {"b", id_json(b)}, {"out", out}});
+        line("SUB", "a=" + id_str(a) + "  b=" + id_str(b) + "  out=" + id_str(out));
     }
 
     void on_mul(size_t a, size_t b, size_t out) override {
-        emit({{"event", "mul"}, {"a", id_json(a)}, {"b", id_json(b)}, {"out", out}});
+        line("MUL", "a=" + id_str(a) + "  b=" + id_str(b) + "  out=" + id_str(out));
     }
 
     void on_add_const(size_t a, const mpz_class& k, size_t out) override {
-        emit({{"event", "add_const"}, {"a", id_json(a)}, {"k", hex_val(k)}, {"out", out}});
+        line("ADD_CONST", "a=" + id_str(a) + "  k=" + val_str(k) + "  out=" + id_str(out));
     }
 
     void on_sub_const(size_t a, const mpz_class& k, size_t out) override {
-        emit({{"event", "sub_const"}, {"a", id_json(a)}, {"k", hex_val(k)}, {"out", out}});
+        line("SUB_CONST", "a=" + id_str(a) + "  k=" + val_str(k) + "  out=" + id_str(out));
     }
 
     void on_const_sub(const mpz_class& k, size_t a, size_t out) override {
-        emit({{"event", "const_sub"}, {"k", hex_val(k)}, {"a", id_json(a)}, {"out", out}});
+        line("CONST_SUB", "k=" + val_str(k) + "  a=" + id_str(a) + "  out=" + id_str(out));
     }
 
     void on_mul_const(size_t a, const mpz_class& k, size_t out) override {
-        emit({{"event", "mul_const"}, {"a", id_json(a)}, {"k", hex_val(k)}, {"out", out}});
+        line("MUL_CONST", "a=" + id_str(a) + "  k=" + val_str(k) + "  out=" + id_str(out));
     }
 
     void on_bitwise_not(size_t a, size_t out) override {
-        emit({{"event", "bitwise_not"}, {"a", id_json(a)}, {"out", out}});
+        line("BITWISE_NOT", "a=" + id_str(a) + "  out=" + id_str(out));
     }
 
     void on_bitwise_and(size_t a, size_t b, size_t out) override {
-        emit({{"event", "bitwise_and"}, {"a", id_json(a)}, {"b", id_json(b)}, {"out", out}});
+        line("BITWISE_AND", "a=" + id_str(a) + "  b=" + id_str(b) + "  out=" + id_str(out));
     }
 
     void on_equal(size_t a, size_t b) override {
-        emit({{"event", "equal"}, {"a", a}, {"b", b}});
+        line("EQUAL", "a=" + id_str(a) + "  b=" + id_str(b));
     }
 
     void on_constant(size_t id, const mpz_class& val) override {
-        emit({{"event", "constant"}, {"id", id}, {"val", hex_val(val)}});
+        line("CONSTANT", "id=" + id_str(id) + "  val=" + val_str(val));
     }
 
     void on_bit(size_t id) override {
-        emit({{"event", "bit"}, {"id", id}});
+        line("BIT", "id=" + id_str(id));
     }
 
 private:
-    void emit(json j) { out_ << j.dump() << '\n'; }
+    // Emit one line: left-aligned event name in a fixed-width column, then fields.
+    void line(const char* event, const std::string& fields) {
+        out_ << std::left << std::setw(13) << event << "  " << fields << '\n';
+    }
+
     std::ostream& out_;
 };
 
@@ -351,7 +357,7 @@ int main(int argc, const char *argv[]) {
     zkp::null_executor exe(params::default_packing_size, params::default_row_size);
     zkp::trace_context<field_t> ctx(exe);
 
-    json_observer observer(*out_stream);
+    text_observer observer(*out_stream);
     ctx.set_observer(&observer);
 
     // Execute the program; observer fires for every constraint event
