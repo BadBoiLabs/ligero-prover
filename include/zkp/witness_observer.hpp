@@ -46,7 +46,11 @@ struct witness_observer {
 
     // Fired just before a witness is garbage-collected. val is the final
     // wire value. status distinguishes linear / quadratic / non-witness.
-    virtual void on_release(size_t id, const mpz_class& val, commit_status status) {}
+    // slot_id is set to a sequential slot identifier for quadratic witnesses
+    // (pending and ready); it is unknown_id for linear and non-witness releases.
+    // All three witnesses in the same quadratic row share the same slot_id.
+    virtual void on_release(size_t id, const mpz_class& val, commit_status status,
+                            size_t slot_id = unknown_id) {}
 
     // --- Arithmetic constraints -------------------------------------------
     // All field operations are mod p (the BN254 scalar field prime).

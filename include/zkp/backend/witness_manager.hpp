@@ -123,7 +123,8 @@ struct witness_manager {
         commit_status status = wit->commit_notify();
 
         if (observer_) {
-            observer_->on_release(wit->id, *wit->value_ptr(), status);
+            size_t slot_id = wit->slot_ptr() ? wit->slot_ptr()->id : zkp::unknown_id;
+            observer_->on_release(wit->id, *wit->value_ptr(), status, slot_id);
         }
 
         switch (status) {
@@ -501,6 +502,7 @@ struct witness_manager {
     constrain_quadratic(lazy_witness *c, lazy_witness *a, lazy_witness *b) {
         if (observer_) observer_->on_quadratic(c->id, a->id, b->id);
         auto* slot = slot_pool_.acquire();
+        slot->id = next_slot_id_++;
 
         lazy_witness *arr[3] = { a, b, c };
 
@@ -516,6 +518,7 @@ struct witness_manager {
                 slot->set_witness(arr[i], i);
             }
         }
+
         return *this;
     }
 
@@ -570,6 +573,7 @@ private:
     size_t row_size_, padded_row_size_;
 
     size_t next_id_           = 0;
+    size_t next_slot_id_      = 0;
     witness_observer* observer_ = nullptr;
 
     mpz_random_engine encoding_random_engine_;

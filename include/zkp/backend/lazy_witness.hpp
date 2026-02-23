@@ -88,7 +88,12 @@ struct quadratic_slot {
           ready_{ false, false, false }
         { }
 
+    // Sequential ID assigned by witness_manager at slot creation time.
+    // All three witnesses in the slot share this ID in their RELEASE events.
+    size_t id = 0;
+
     void reset() {
+        id = 0;
         for (int i = 0; i < 3; i++) {
             witnesses_[i] = nullptr;
             ready_[i] = false;
