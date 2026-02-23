@@ -23,13 +23,19 @@
 //!     [1]: Input text A (private) (as string)
 //!     [2]: Input text B (as string)
 
+use ligetron::bn254fr::Bn254Fr;
 use ligetron::*;
 
 fn main() {
     let args = get_args();
 
-    let a: usize = args.get_as_int(1).try_into().unwrap();
-    let b: usize = args.get_as_int(2).try_into().unwrap();
+    let a: u64 = args.get_as_int(1).try_into().unwrap();
+    let mut a = Bn254Fr::from_u64(a);
 
-    assert_one(a + b == 5);
+    let b: u64 = args.get_as_int(2).try_into().unwrap();
+    let b = Bn254Fr::from_u64(b);
+
+    a.addmod_checked(&b);
+
+    Bn254Fr::assert_equal(&a, &Bn254Fr::from_u64(5));
 }

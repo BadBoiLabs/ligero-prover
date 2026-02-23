@@ -51,6 +51,7 @@ ADD_CONST    a=0  k=1  out=1       # out = a + k  (mod p)
 SUB_CONST    a=0  k=1  out=1       # out = a - k  (mod p)
 CONST_SUB    k=1  a=0  out=1       # out = k - a  (mod p)
 BITWISE_NOT  a=0  out=1            # out = 1 - a  (a must be 0 or 1)
+LINEAR       out=4  a=1  b=3       # out = a + b  (mod p)  via bn254fr_assert_add
 ```
 
 ### Quadratic constraints
@@ -58,6 +59,7 @@ BITWISE_NOT  a=0  out=1            # out = 1 - a  (a must be 0 or 1)
 ```
 MUL          a=0  b=1  out=2       # out = a * b  (mod p)
 BITWISE_AND  a=0  b=1  out=2       # out = a & b  (a,b must be 0 or 1)
+QUADRATIC    out=4  a=1  b=3       # out = a * b  (mod p)  via bn254fr_assert_mul
 ```
 
 ### Structural constraints
@@ -81,40 +83,6 @@ When an arithmetic operation is applied to a nested sub-expression rather than a
 directly named witness, the operand ID is shown as `?`. This occurs in folded
 expressions such as `a + b + c`, where the intermediate `a + b` result may not
 have been allocated as a named witness before being consumed.
-
-## Unconstrained compute events
-
-When a guest program calls `bn254fr_addmod`, `bn254fr_mulmod`, etc. **without** a
-corresponding `bn254fr_assert_*` call, the arithmetic is computed but **not constrained**
-in the proof. These appear as compute events distinct from the constraint events above.
-
-```
-ADDMOD       out=1  x=1  y=3     # out->val = x->val + y->val  (mod p, no constraint)
-SUBMOD       out=N  x=N  y=N
-MULMOD       out=N  x=N  y=N
-DIVMOD       out=N  x=N  y=N
-INVMOD       out=N  x=N
-NEGMOD       out=N  x=N
-POWMOD       out=N  x=N  y=N
-IDIV         out=N  x=N  y=N     # integer floor division
-IREM         out=N  x=N  y=N     # integer floor remainder
-COPY         dst=N  src=N        # dst->val = src->val
-```
-
-For in-place operations (e.g. `a.addmod(&b)` in the Rust SDK, where `out == x`),
-the RELEASE event for `out` will show the post-operation value. For example:
-
-```
-ACQUIRE      id=1   val=9999
-ACQUIRE      id=3   val=88888
-ADDMOD       out=1  x=1  y=3
-RELEASE      id=3   val=88888  status=not_a_witness
-RELEASE      id=1   val=98887  status=linear_ready
-```
-
-> **Note:** An ADDMOD event means the value was computed but is **not** a ZK constraint.
-> To constrain it, the program must separately call `bn254fr_assert_add`, which emits a
-> `LINEAR` event.
 
 ## Limitations
 

@@ -499,6 +499,7 @@ struct witness_manager {
 
     witness_manager&
     constrain_quadratic(lazy_witness *c, lazy_witness *a, lazy_witness *b) {
+        if (observer_) observer_->on_quadratic(c->id, a->id, b->id);
         auto* slot = slot_pool_.acquire();
 
         lazy_witness *arr[3] = { a, b, c };
@@ -548,38 +549,6 @@ struct witness_manager {
     }
     void notify_bitwise_and(size_t a, size_t b, size_t out) {
         if (observer_) observer_->on_bitwise_and(a, b, out);
-    }
-
-    // --- Unconstrained compute notification helpers --------------------------
-    void notify_addmod(size_t out, size_t x, size_t y) {
-        if (observer_) observer_->on_addmod(out, x, y);
-    }
-    void notify_submod(size_t out, size_t x, size_t y) {
-        if (observer_) observer_->on_submod(out, x, y);
-    }
-    void notify_mulmod(size_t out, size_t x, size_t y) {
-        if (observer_) observer_->on_mulmod(out, x, y);
-    }
-    void notify_divmod(size_t out, size_t x, size_t y) {
-        if (observer_) observer_->on_divmod(out, x, y);
-    }
-    void notify_invmod(size_t out, size_t x) {
-        if (observer_) observer_->on_invmod(out, x);
-    }
-    void notify_negmod(size_t out, size_t x) {
-        if (observer_) observer_->on_negmod(out, x);
-    }
-    void notify_powmod(size_t out, size_t x, size_t y) {
-        if (observer_) observer_->on_powmod(out, x, y);
-    }
-    void notify_idiv(size_t out, size_t x, size_t y) {
-        if (observer_) observer_->on_idiv(out, x, y);
-    }
-    void notify_irem(size_t out, size_t x, size_t y) {
-        if (observer_) observer_->on_irem(out, x, y);
-    }
-    void notify_copy(size_t dst, size_t src) {
-        if (observer_) observer_->on_copy(dst, src);
     }
 
     void finalize() {

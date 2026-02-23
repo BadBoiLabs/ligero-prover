@@ -383,7 +383,6 @@ struct bn254fr_module : public host_module {
         auto *src  = load_bn254(src_addr);
 
         *dest->value_ptr() = *src->value_ptr();
-        ctx_->backend().manager().notify_copy(dest->id, src->id);
     }
 
     void bn254fr_print() {
@@ -419,7 +418,6 @@ struct bn254fr_module : public host_module {
         auto *out = load_bn254(out_addr);
 
         Field::addmod(*out->value_ptr(), *x->value_ptr(), *y->value_ptr());
-        ctx_->backend().manager().notify_addmod(out->id, x->id, y->id);
     }
 
     void bn254fr_submod() {
@@ -432,7 +430,6 @@ struct bn254fr_module : public host_module {
         auto *out = load_bn254(out_addr);
 
         Field::submod(*out->value_ptr(), *x->value_ptr(), *y->value_ptr());
-        ctx_->backend().manager().notify_submod(out->id, x->id, y->id);
     }
 
     void bn254fr_mulmod() {
@@ -445,7 +442,6 @@ struct bn254fr_module : public host_module {
         auto *out = load_bn254(out_addr);
 
         Field::mulmod(*out->value_ptr(), *x->value_ptr(), *y->value_ptr());
-        ctx_->backend().manager().notify_mulmod(out->id, x->id, y->id);
     }
 
     void bn254fr_divmod() {
@@ -458,7 +454,6 @@ struct bn254fr_module : public host_module {
         auto *out = load_bn254(out_addr);
 
         Field::divmod(*out->value_ptr(), *x->value_ptr(), *y->value_ptr());
-        ctx_->backend().manager().notify_divmod(out->id, x->id, y->id);
     }
 
     void bn254fr_invmod() {
@@ -469,7 +464,6 @@ struct bn254fr_module : public host_module {
         auto *out = load_bn254(out_addr);
 
         Field::invmod(*out->value_ptr(), *x->value_ptr());
-        ctx_->backend().manager().notify_invmod(out->id, x->id);
     }
 
     void bn254fr_negmod() {
@@ -480,7 +474,6 @@ struct bn254fr_module : public host_module {
         auto *out = load_bn254(out_addr);
 
         Field::negate(*out->value_ptr(), *x->value_ptr());
-        ctx_->backend().manager().notify_negmod(out->id, x->id);
     }
 
     void bn254fr_powmod() {
@@ -493,7 +486,6 @@ struct bn254fr_module : public host_module {
         auto *out = load_bn254(out_addr);
 
         Field::powmod(*out->value_ptr(), *x->value_ptr(), *y->value_ptr());
-        ctx_->backend().manager().notify_powmod(out->id, x->id, y->id);
     }
 
     void bn254fr_idiv() {
@@ -508,7 +500,6 @@ struct bn254fr_module : public host_module {
         mpz_fdiv_q(out->value_ptr()->get_mpz_t(),
                    x->value_ptr()->get_mpz_t(),
                    y->value_ptr()->get_mpz_t());
-        ctx_->backend().manager().notify_idiv(out->id, x->id, y->id);
     }
 
     void bn254fr_irem() {
@@ -523,7 +514,6 @@ struct bn254fr_module : public host_module {
         mpz_fdiv_r(out->value_ptr()->get_mpz_t(),
                    x->value_ptr()->get_mpz_t(),
                    y->value_ptr()->get_mpz_t());
-        ctx_->backend().manager().notify_irem(out->id, x->id, y->id);
     }
 
     // ------------------------------------------------------------

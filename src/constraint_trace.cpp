@@ -48,6 +48,8 @@
 //   EQUAL        a=N    b=N
 //   CONSTANT     id=N   val=V
 //   BIT          id=N
+//   LINEAR       out=N  a=N    b=N    (direct assert: out = a + b mod p)
+//   QUADRATIC    out=N  a=N    b=N    (direct assert: out = a * b mod p)
 //
 // N is a witness ID (decimal), or ? for an intermediate sub-expression.
 // V is the field element value (decimal; may be large for BN254 elements).
@@ -170,6 +172,14 @@ struct text_observer : zkp::witness_observer {
 
     void on_bit(size_t id) override {
         line("BIT", "id=" + id_str(id));
+    }
+
+    void on_linear(size_t out, size_t a, size_t b) override {
+        line("LINEAR", "out=" + id_str(out) + "  a=" + id_str(a) + "  b=" + id_str(b));
+    }
+
+    void on_quadratic(size_t out, size_t a, size_t b) override {
+        line("QUADRATIC", "out=" + id_str(out) + "  a=" + id_str(a) + "  b=" + id_str(b));
     }
 
 private:
