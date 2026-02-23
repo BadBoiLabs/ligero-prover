@@ -122,7 +122,7 @@ struct witness_manager {
     void commit_release_witness(lazy_witness *wit) {
         commit_status status = wit->commit_notify();
 
-        if (observer_ && wit->is_witness()) {
+        if (observer_) {
             observer_->on_release(wit->id, *wit->value_ptr(), status);
         }
 
@@ -466,11 +466,19 @@ struct witness_manager {
 
     witness_manager&
     constrain_linear(lazy_witness& c, lazy_witness& a, lazy_witness& b) {
+        if (observer_) observer_->on_linear(c.id, a.id, b.id);
         mpz_class *rand = acquire_mpz();
         generate_linear_random(*rand);
         constrain_linear(*rand, c, a, b);
         recycle_mpz(rand);
         return *this;
+    }
+
+    // Notify the observer that a witness has had its value set externally
+    // (e.g. via bn254fr_set_u64). Reuses on_acquire semantics: "witness id
+    // now has value val".
+    void notify_value_set(const lazy_witness& wit) {
+        if (observer_) observer_->on_acquire(wit.id, *wit.value_ptr());
     }
 
     template <typename T>
@@ -540,6 +548,38 @@ struct witness_manager {
     }
     void notify_bitwise_and(size_t a, size_t b, size_t out) {
         if (observer_) observer_->on_bitwise_and(a, b, out);
+    }
+
+    // --- Unconstrained compute notification helpers --------------------------
+    void notify_addmod(size_t out, size_t x, size_t y) {
+        if (observer_) observer_->on_addmod(out, x, y);
+    }
+    void notify_submod(size_t out, size_t x, size_t y) {
+        if (observer_) observer_->on_submod(out, x, y);
+    }
+    void notify_mulmod(size_t out, size_t x, size_t y) {
+        if (observer_) observer_->on_mulmod(out, x, y);
+    }
+    void notify_divmod(size_t out, size_t x, size_t y) {
+        if (observer_) observer_->on_divmod(out, x, y);
+    }
+    void notify_invmod(size_t out, size_t x) {
+        if (observer_) observer_->on_invmod(out, x);
+    }
+    void notify_negmod(size_t out, size_t x) {
+        if (observer_) observer_->on_negmod(out, x);
+    }
+    void notify_powmod(size_t out, size_t x, size_t y) {
+        if (observer_) observer_->on_powmod(out, x, y);
+    }
+    void notify_idiv(size_t out, size_t x, size_t y) {
+        if (observer_) observer_->on_idiv(out, x, y);
+    }
+    void notify_irem(size_t out, size_t x, size_t y) {
+        if (observer_) observer_->on_irem(out, x, y);
+    }
+    void notify_copy(size_t dst, size_t src) {
+        if (observer_) observer_->on_copy(dst, src);
     }
 
     void finalize() {

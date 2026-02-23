@@ -289,6 +289,7 @@ struct nonbatch_context_base {
                         default:
                             throw wasm_trap("Unexpected numeric");
                     }
+                    backend_.manager().notify_value_set(*x);
                     return x;
                 },
                 [](witness_type&& wit) {

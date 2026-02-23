@@ -78,6 +78,26 @@ struct witness_observer {
     virtual void on_constant(size_t id, const mpz_class& val) {}
     // id must be in {0, 1}
     virtual void on_bit(size_t id) {}
+
+    // Fired by the direct-assertion path (e.g. bn254fr_assert_add) where a
+    // linear constraint is recorded without going through eval_impl:
+    // out = a + b  (mod p)
+    virtual void on_linear(size_t out, size_t a, size_t b) {}
+
+    // --- Unconstrained compute events (bn254fr_* without assert) ----------
+    // These fire when a host arithmetic function overwrites a witness value
+    // without recording any ZK constraint. The value after the operation is
+    // visible at the subsequent RELEASE event.
+    virtual void on_addmod(size_t out, size_t x, size_t y) {}
+    virtual void on_submod(size_t out, size_t x, size_t y) {}
+    virtual void on_mulmod(size_t out, size_t x, size_t y) {}
+    virtual void on_divmod(size_t out, size_t x, size_t y) {}
+    virtual void on_invmod(size_t out, size_t x) {}
+    virtual void on_negmod(size_t out, size_t x) {}
+    virtual void on_powmod(size_t out, size_t x, size_t y) {}
+    virtual void on_idiv(size_t out, size_t x, size_t y) {}
+    virtual void on_irem(size_t out, size_t x, size_t y) {}
+    virtual void on_copy(size_t dst, size_t src) {}
 };
 
 } // namespace ligero::vm::zkp
